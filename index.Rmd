@@ -1,30 +1,93 @@
 ---
-title: "Practical Machine Learning Course Project"
+title: "practical-machine-learning-project"
 author: "Ahmed Bahloul"
-date: "11/18/2020"
-output: html_document
+date: "11/11/2020"
+output:
+  html_document: default
+  pdf_document: default
+  md_extensions: -startnum
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Background
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: <http://groupware.les.inf.puc-rio.br/har> (see the section on the Weight Lifting Exercise Dataset).
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+**Note**: The data for this project come from this source: <http://groupware.les.inf.puc-rio.br/har> , Reference: Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
 
+Read more: <http://groupware.les.inf.puc-rio.br/har#ixzz6dTnNnnRf>
+
+
+The goal of this project is to predict the manner in which they did the exercise. This is the **"classe"** variable in the training set. We will create a report describing how we built our model, how we used cross validation, what we think the expected out of sample error is, and why we made the choices for the model selection,  we will also use our prediction model to predict 20 different test cases.
+
+## Importing Libraries  
 ```{r cars}
-summary(cars)
+library(caret)
+library(ggplot2)
+library(parallel)
+library(doParallel)
 ```
 
-## Including Plots
+## Loading Data 
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r echo = TRUE}
+training <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv") 
+validation <-  read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+dim(training)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+We see that the training data has `r dim(training)[1]` observations,  and `r dim(training)[2]` variables which need to be explored and cleaned if they have any issues like missing values. 
+
+## Exploratory data analysis 
+
+Before we start our prediction analysis, we need to cleanse our data set by removing missing values and not related variable to our analysis. we will do the following cleansing: 
+* Removing Missing Values Columns 
+* Removing Zero Values Columns
+* Removing not related Variables by name 
+
+```{r echo = TRUE}
+training <- training[,colMeans(is.na(training)) < .9]
+training <- training[,colSums(is.na(training)) ==0]
+names(training) 
+Col_names_remove <- c('user_name','raw_timestamp_part_1', 'raw_timestamp_part_2', 'cvtd_timestamp', 'new_window', 'num_window', 'X')
+training <- training[,!(names(training) %in% Col_names_remove)]
+names(training) 
+```
+
+We Also need to do the same cleansing process to the Validation data which will be used to validate the final fitted model. 
+
+```{r echo = TRUE}
+validation <- validation[,colMeans(is.na(validation)) < .9]
+validation <- validation[,colSums(is.na(validation)) ==0]
+Col_names_remove_V <- c('user_name','raw_timestamp_part_1', 'raw_timestamp_part_2', 'cvtd_timestamp', 'new_window', 'num_window', 'X')
+validation <- validation[,!(names(validation) %in% Col_names_remove_V)]
+
+```
+
+## Preparing the dataset for prediction
+
+We will split the training to 70% as train data and 30% as test data to use the cross validation in order to validate our fitted model. 
+
+```{r echo = TRUE}
+train_in <- createDataPartition(training$classe ,  p = 0.7, list = FALSE)
+trainData <- training[train_in,]
+testData <- training[-train_in,]
+```
+
+Now we have `r dim(trainData)[1]` observations and `r dim(trainData)[2]` Variables in the training data set,  we will use this to train our prediction models, we will try the following machine learning algorithms: 
+1.    Decision Tree
+2.    Random Forest 
+3.    Gradient Boosted Tress 
+
+
+### 1.    Decision Tree
+
+```{r echo = TRUE}
+cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+registerDoParallel(cluster)
+control <- trainControl(method="cv", number=5, verboseIter=F, allowParallel = TRUE)
+```
+
