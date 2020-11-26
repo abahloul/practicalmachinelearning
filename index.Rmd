@@ -5,7 +5,6 @@ date: "11/11/2020"
 output:
   html_document: default
   pdf_document: default
-  md_extensions: -startnum
 ---
 
 ```{r setup, include=FALSE}
@@ -24,11 +23,13 @@ Read more: <http://groupware.les.inf.puc-rio.br/har#ixzz6dTnNnnRf>
 The goal of this project is to predict the manner in which they did the exercise. This is the **"classe"** variable in the training set. We will create a report describing how we built our model, how we used cross validation, what we think the expected out of sample error is, and why we made the choices for the model selection,  we will also use our prediction model to predict 20 different test cases.
 
 ## Importing Libraries  
-```{r cars}
+```{r echo = TRUE}
 library(caret)
 library(ggplot2)
+library(lattice)
 library(parallel)
 library(doParallel)
+
 ```
 
 ## Loading Data 
@@ -36,38 +37,48 @@ library(doParallel)
 ```{r echo = TRUE}
 training <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv") 
 validation <-  read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
-dim(training)
+dim(training); dim(validation)
 ```
 
 We see that the training data has `r dim(training)[1]` observations,  and `r dim(training)[2]` variables which need to be explored and cleaned if they have any issues like missing values. 
 
 ## Exploratory data analysis 
 
-Before we start our prediction analysis, we need to cleanse our data set by removing missing values and not related variable to our analysis. we will do the following cleansing: 
+Before we start our prediction analysis, we need to cleanse our dataset by removing missing values and not related variable to our analysis. we will do the following cleansing: 
 * Removing Missing Values Columns 
 * Removing Zero Values Columns
 * Removing not related Variables by name 
+* Removing Near Zero Predictors 
+We should also repeat every cleansing process to the final validation dataset.  
 
 ```{r echo = TRUE}
 training <- training[,colMeans(is.na(training)) < .9]
 training <- training[,colSums(is.na(training)) ==0]
-names(training) 
+#validation <- validation[,colMeans(is.na(validation)) < .9]
+#validation <- validation[,colSums(is.na(validation)) ==0]
+dim(training); dim(validation)
 Col_names_remove <- c('user_name','raw_timestamp_part_1', 'raw_timestamp_part_2', 'cvtd_timestamp', 'new_window', 'num_window', 'X')
 training <- training[,!(names(training) %in% Col_names_remove)]
-names(training) 
+#validation <- validation[,!(names(validation) %in% Col_names_remove)]
+dim(training); dim(validation)
+Near_Zero_Variance <- nearZeroVar(training)
+dim(training); dim(validation)
+training <- training[, -Near_Zero_Variance]
+#validation <- validation[,-Near_Zero_Variance]
+dim(training); dim(validation)
 ```
 
-We Also need to do the same cleansing process to the Validation data which will be used to validate the final fitted model. 
+Now Our training dataset is ready to proceed with prediction, but we need to check the Multicollinearity between the predictors and remove the highly correlated variables. 
 
-```{r echo = TRUE}
-validation <- validation[,colMeans(is.na(validation)) < .9]
-validation <- validation[,colSums(is.na(validation)) ==0]
-Col_names_remove_V <- c('user_name','raw_timestamp_part_1', 'raw_timestamp_part_2', 'cvtd_timestamp', 'new_window', 'num_window', 'X')
-validation <- validation[,!(names(validation) %in% Col_names_remove_V)]
 
+``` {r echo= TRUE}
+corr_vars <- cor(training[, -53])
+high_corr_vars <- findCorrelation(corr_vars, cutoff = 0.75)
+training <- training[, -high_corr_vars]
 ```
 
-## Preparing the dataset for prediction
+
+## Preparing dataset for prediction
 
 We will split the training to 70% as train data and 30% as test data to use the cross validation in order to validate our fitted model. 
 
@@ -78,16 +89,54 @@ testData <- training[-train_in,]
 ```
 
 Now we have `r dim(trainData)[1]` observations and `r dim(trainData)[2]` Variables in the training data set,  we will use this to train our prediction models, we will try the following machine learning algorithms: 
-1.    Decision Tree
-2.    Random Forest 
-3.    Gradient Boosted Tress 
+1.    Random Forest
+2.    Gradient Boosted Trees
+3.    Support Vector Machine 
 
 
-### 1.    Decision Tree
+### 1.    Random Forest
 
 ```{r echo = TRUE}
-cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+set.seed(1254)
+cluster <- makeCluster(detectCores() - 1)
 registerDoParallel(cluster)
-control <- trainControl(method="cv", number=5, verboseIter=F, allowParallel = TRUE)
+control <- trainControl(method="cv", number=3, allowParallel = TRUE )
+system.time(rf_Model <- train(classe ~ .,
+               data = trainData,
+               method = "rf",
+               trControl=control))
+stopCluster(cluster)
+registerDoSEQ()
+rf_Predict <- predict(rf_Model, testData)
+rf_cm <- confusionMatrix(rf_Predict,factor(testData$classe))
+rf_cm
 ```
 
+### 2. Gradient Boosted Trees 
+
+``` {r echo = TRUE}
+#control_gbm <- trainControl(method="cv", number=3, verboseIter=F)
+#gbm_Model <- train(classe ~. , data=trainData , method = "gbm" , trControl = control_gbm , tuneLength = 5, verbose = F)
+#gbm_predict <- predict(gbm_Model, testData)
+#gbm_cm <- confusionMatrix(gbm_Predict,factor(testData$classe))
+#gbm_cm
+```
+
+### 3.Support Vector Machine 
+
+``` {r echo = TRUE}
+control_svm <- trainControl(method="cv", number=3, verboseIter=F)
+svm_Model <- train(classe ~. , data=trainData , method = "svmLinear" , trControl = control_svm , tuneLength = 5, verbose = F)
+svm_predict <- predict(svm_Model, testData)
+svm_cm <- confusionMatrix(svm_predict,factor(testData$classe))
+svm_cm
+```
+
+## Model Selection & Predictions on Validation data 
+
+As we see both Random Forest & Gradient boosted Model has a very good Accuracy and a little out of sample errors rather than support vector machine so I am going to select *Random Forest* to predict the 20 class in the Validation data set. 
+
+``` {r echo = TRUE}
+predict20 <- predict(rf_Model,newdata=validation) 
+print(predict20)
+```

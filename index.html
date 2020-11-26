@@ -433,6 +433,7 @@ summary {
 <pre><code>## Loading required package: ggplot2</code></pre>
 <pre><code>## Warning: package &#39;ggplot2&#39; was built under R version 4.0.3</code></pre>
 <pre class="r"><code>library(ggplot2)
+library(lattice)
 library(parallel)
 library(doParallel)</code></pre>
 <pre><code>## Warning: package &#39;doParallel&#39; was built under R version 4.0.3</code></pre>
@@ -445,128 +446,154 @@ library(doParallel)</code></pre>
 <h2>Loading Data</h2>
 <pre class="r"><code>training &lt;- read.csv(&quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv&quot;) 
 validation &lt;-  read.csv(&quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv&quot;)
-dim(training)</code></pre>
+dim(training); dim(validation)</code></pre>
 <pre><code>## [1] 19622   160</code></pre>
+<pre><code>## [1]  20 160</code></pre>
 <p>We see that the training data has 19622 observations, and 160 variables which need to be explored and cleaned if they have any issues like missing values.</p>
 </div>
 <div id="exploratory-data-analysis" class="section level2">
 <h2>Exploratory data analysis</h2>
-<p>Before we start our prediction analysis, we need to cleanse our data set by removing missing values and not related variable to our analysis. we will do the following cleansing: * Removing Missing Values Columns * Removing Zero Values Columns * Removing not related Variables by name</p>
+<p>Before we start our prediction analysis, we need to cleanse our dataset by removing missing values and not related variable to our analysis. we will do the following cleansing: * Removing Missing Values Columns * Removing Zero Values Columns * Removing not related Variables by name * Removing Near Zero Predictors We should also repeat every cleansing process to the final validation dataset.</p>
 <pre class="r"><code>training &lt;- training[,colMeans(is.na(training)) &lt; .9]
 training &lt;- training[,colSums(is.na(training)) ==0]
-names(training) </code></pre>
-<pre><code>##  [1] &quot;X&quot;                       &quot;user_name&quot;              
-##  [3] &quot;raw_timestamp_part_1&quot;    &quot;raw_timestamp_part_2&quot;   
-##  [5] &quot;cvtd_timestamp&quot;          &quot;new_window&quot;             
-##  [7] &quot;num_window&quot;              &quot;roll_belt&quot;              
-##  [9] &quot;pitch_belt&quot;              &quot;yaw_belt&quot;               
-## [11] &quot;total_accel_belt&quot;        &quot;kurtosis_roll_belt&quot;     
-## [13] &quot;kurtosis_picth_belt&quot;     &quot;kurtosis_yaw_belt&quot;      
-## [15] &quot;skewness_roll_belt&quot;      &quot;skewness_roll_belt.1&quot;   
-## [17] &quot;skewness_yaw_belt&quot;       &quot;max_yaw_belt&quot;           
-## [19] &quot;min_yaw_belt&quot;            &quot;amplitude_yaw_belt&quot;     
-## [21] &quot;gyros_belt_x&quot;            &quot;gyros_belt_y&quot;           
-## [23] &quot;gyros_belt_z&quot;            &quot;accel_belt_x&quot;           
-## [25] &quot;accel_belt_y&quot;            &quot;accel_belt_z&quot;           
-## [27] &quot;magnet_belt_x&quot;           &quot;magnet_belt_y&quot;          
-## [29] &quot;magnet_belt_z&quot;           &quot;roll_arm&quot;               
-## [31] &quot;pitch_arm&quot;               &quot;yaw_arm&quot;                
-## [33] &quot;total_accel_arm&quot;         &quot;gyros_arm_x&quot;            
-## [35] &quot;gyros_arm_y&quot;             &quot;gyros_arm_z&quot;            
-## [37] &quot;accel_arm_x&quot;             &quot;accel_arm_y&quot;            
-## [39] &quot;accel_arm_z&quot;             &quot;magnet_arm_x&quot;           
-## [41] &quot;magnet_arm_y&quot;            &quot;magnet_arm_z&quot;           
-## [43] &quot;kurtosis_roll_arm&quot;       &quot;kurtosis_picth_arm&quot;     
-## [45] &quot;kurtosis_yaw_arm&quot;        &quot;skewness_roll_arm&quot;      
-## [47] &quot;skewness_pitch_arm&quot;      &quot;skewness_yaw_arm&quot;       
-## [49] &quot;roll_dumbbell&quot;           &quot;pitch_dumbbell&quot;         
-## [51] &quot;yaw_dumbbell&quot;            &quot;kurtosis_roll_dumbbell&quot; 
-## [53] &quot;kurtosis_picth_dumbbell&quot; &quot;kurtosis_yaw_dumbbell&quot;  
-## [55] &quot;skewness_roll_dumbbell&quot;  &quot;skewness_pitch_dumbbell&quot;
-## [57] &quot;skewness_yaw_dumbbell&quot;   &quot;max_yaw_dumbbell&quot;       
-## [59] &quot;min_yaw_dumbbell&quot;        &quot;amplitude_yaw_dumbbell&quot; 
-## [61] &quot;total_accel_dumbbell&quot;    &quot;gyros_dumbbell_x&quot;       
-## [63] &quot;gyros_dumbbell_y&quot;        &quot;gyros_dumbbell_z&quot;       
-## [65] &quot;accel_dumbbell_x&quot;        &quot;accel_dumbbell_y&quot;       
-## [67] &quot;accel_dumbbell_z&quot;        &quot;magnet_dumbbell_x&quot;      
-## [69] &quot;magnet_dumbbell_y&quot;       &quot;magnet_dumbbell_z&quot;      
-## [71] &quot;roll_forearm&quot;            &quot;pitch_forearm&quot;          
-## [73] &quot;yaw_forearm&quot;             &quot;kurtosis_roll_forearm&quot;  
-## [75] &quot;kurtosis_picth_forearm&quot;  &quot;kurtosis_yaw_forearm&quot;   
-## [77] &quot;skewness_roll_forearm&quot;   &quot;skewness_pitch_forearm&quot; 
-## [79] &quot;skewness_yaw_forearm&quot;    &quot;max_yaw_forearm&quot;        
-## [81] &quot;min_yaw_forearm&quot;         &quot;amplitude_yaw_forearm&quot;  
-## [83] &quot;total_accel_forearm&quot;     &quot;gyros_forearm_x&quot;        
-## [85] &quot;gyros_forearm_y&quot;         &quot;gyros_forearm_z&quot;        
-## [87] &quot;accel_forearm_x&quot;         &quot;accel_forearm_y&quot;        
-## [89] &quot;accel_forearm_z&quot;         &quot;magnet_forearm_x&quot;       
-## [91] &quot;magnet_forearm_y&quot;        &quot;magnet_forearm_z&quot;       
-## [93] &quot;classe&quot;</code></pre>
+#validation &lt;- validation[,colMeans(is.na(validation)) &lt; .9]
+#validation &lt;- validation[,colSums(is.na(validation)) ==0]
+dim(training); dim(validation)</code></pre>
+<pre><code>## [1] 19622    93</code></pre>
+<pre><code>## [1]  20 160</code></pre>
 <pre class="r"><code>Col_names_remove &lt;- c(&#39;user_name&#39;,&#39;raw_timestamp_part_1&#39;, &#39;raw_timestamp_part_2&#39;, &#39;cvtd_timestamp&#39;, &#39;new_window&#39;, &#39;num_window&#39;, &#39;X&#39;)
 training &lt;- training[,!(names(training) %in% Col_names_remove)]
-names(training) </code></pre>
-<pre><code>##  [1] &quot;roll_belt&quot;               &quot;pitch_belt&quot;             
-##  [3] &quot;yaw_belt&quot;                &quot;total_accel_belt&quot;       
-##  [5] &quot;kurtosis_roll_belt&quot;      &quot;kurtosis_picth_belt&quot;    
-##  [7] &quot;kurtosis_yaw_belt&quot;       &quot;skewness_roll_belt&quot;     
-##  [9] &quot;skewness_roll_belt.1&quot;    &quot;skewness_yaw_belt&quot;      
-## [11] &quot;max_yaw_belt&quot;            &quot;min_yaw_belt&quot;           
-## [13] &quot;amplitude_yaw_belt&quot;      &quot;gyros_belt_x&quot;           
-## [15] &quot;gyros_belt_y&quot;            &quot;gyros_belt_z&quot;           
-## [17] &quot;accel_belt_x&quot;            &quot;accel_belt_y&quot;           
-## [19] &quot;accel_belt_z&quot;            &quot;magnet_belt_x&quot;          
-## [21] &quot;magnet_belt_y&quot;           &quot;magnet_belt_z&quot;          
-## [23] &quot;roll_arm&quot;                &quot;pitch_arm&quot;              
-## [25] &quot;yaw_arm&quot;                 &quot;total_accel_arm&quot;        
-## [27] &quot;gyros_arm_x&quot;             &quot;gyros_arm_y&quot;            
-## [29] &quot;gyros_arm_z&quot;             &quot;accel_arm_x&quot;            
-## [31] &quot;accel_arm_y&quot;             &quot;accel_arm_z&quot;            
-## [33] &quot;magnet_arm_x&quot;            &quot;magnet_arm_y&quot;           
-## [35] &quot;magnet_arm_z&quot;            &quot;kurtosis_roll_arm&quot;      
-## [37] &quot;kurtosis_picth_arm&quot;      &quot;kurtosis_yaw_arm&quot;       
-## [39] &quot;skewness_roll_arm&quot;       &quot;skewness_pitch_arm&quot;     
-## [41] &quot;skewness_yaw_arm&quot;        &quot;roll_dumbbell&quot;          
-## [43] &quot;pitch_dumbbell&quot;          &quot;yaw_dumbbell&quot;           
-## [45] &quot;kurtosis_roll_dumbbell&quot;  &quot;kurtosis_picth_dumbbell&quot;
-## [47] &quot;kurtosis_yaw_dumbbell&quot;   &quot;skewness_roll_dumbbell&quot; 
-## [49] &quot;skewness_pitch_dumbbell&quot; &quot;skewness_yaw_dumbbell&quot;  
-## [51] &quot;max_yaw_dumbbell&quot;        &quot;min_yaw_dumbbell&quot;       
-## [53] &quot;amplitude_yaw_dumbbell&quot;  &quot;total_accel_dumbbell&quot;   
-## [55] &quot;gyros_dumbbell_x&quot;        &quot;gyros_dumbbell_y&quot;       
-## [57] &quot;gyros_dumbbell_z&quot;        &quot;accel_dumbbell_x&quot;       
-## [59] &quot;accel_dumbbell_y&quot;        &quot;accel_dumbbell_z&quot;       
-## [61] &quot;magnet_dumbbell_x&quot;       &quot;magnet_dumbbell_y&quot;      
-## [63] &quot;magnet_dumbbell_z&quot;       &quot;roll_forearm&quot;           
-## [65] &quot;pitch_forearm&quot;           &quot;yaw_forearm&quot;            
-## [67] &quot;kurtosis_roll_forearm&quot;   &quot;kurtosis_picth_forearm&quot; 
-## [69] &quot;kurtosis_yaw_forearm&quot;    &quot;skewness_roll_forearm&quot;  
-## [71] &quot;skewness_pitch_forearm&quot;  &quot;skewness_yaw_forearm&quot;   
-## [73] &quot;max_yaw_forearm&quot;         &quot;min_yaw_forearm&quot;        
-## [75] &quot;amplitude_yaw_forearm&quot;   &quot;total_accel_forearm&quot;    
-## [77] &quot;gyros_forearm_x&quot;         &quot;gyros_forearm_y&quot;        
-## [79] &quot;gyros_forearm_z&quot;         &quot;accel_forearm_x&quot;        
-## [81] &quot;accel_forearm_y&quot;         &quot;accel_forearm_z&quot;        
-## [83] &quot;magnet_forearm_x&quot;        &quot;magnet_forearm_y&quot;       
-## [85] &quot;magnet_forearm_z&quot;        &quot;classe&quot;</code></pre>
-<p>We Also need to do the same cleansing process to the Validation data which will be used to validate the final fitted model.</p>
-<pre class="r"><code>validation &lt;- validation[,colMeans(is.na(validation)) &lt; .9]
-validation &lt;- validation[,colSums(is.na(validation)) ==0]
-Col_names_remove_V &lt;- c(&#39;user_name&#39;,&#39;raw_timestamp_part_1&#39;, &#39;raw_timestamp_part_2&#39;, &#39;cvtd_timestamp&#39;, &#39;new_window&#39;, &#39;num_window&#39;, &#39;X&#39;)
-validation &lt;- validation[,!(names(validation) %in% Col_names_remove_V)]</code></pre>
+#validation &lt;- validation[,!(names(validation) %in% Col_names_remove)]
+dim(training); dim(validation)</code></pre>
+<pre><code>## [1] 19622    86</code></pre>
+<pre><code>## [1]  20 160</code></pre>
+<pre class="r"><code>Near_Zero_Variance &lt;- nearZeroVar(training)
+dim(training); dim(validation)</code></pre>
+<pre><code>## [1] 19622    86</code></pre>
+<pre><code>## [1]  20 160</code></pre>
+<pre class="r"><code>training &lt;- training[, -Near_Zero_Variance]
+#validation &lt;- validation[,-Near_Zero_Variance]
+dim(training); dim(validation)</code></pre>
+<pre><code>## [1] 19622    53</code></pre>
+<pre><code>## [1]  20 160</code></pre>
+<p>Now Our training dataset is ready to proceed with prediction, but we need to check the Multicollinearity between the predictors and remove the highly correlated variables.</p>
+<pre class="r"><code>corr_vars &lt;- cor(training[, -53])
+high_corr_vars &lt;- findCorrelation(corr_vars, cutoff = 0.75)
+training &lt;- training[, -high_corr_vars]</code></pre>
 </div>
-<div id="preparing-the-dataset-for-prediction" class="section level2">
-<h2>Preparing the dataset for prediction</h2>
+<div id="preparing-dataset-for-prediction" class="section level2">
+<h2>Preparing dataset for prediction</h2>
 <p>We will split the training to 70% as train data and 30% as test data to use the cross validation in order to validate our fitted model.</p>
 <pre class="r"><code>train_in &lt;- createDataPartition(training$classe ,  p = 0.7, list = FALSE)
 trainData &lt;- training[train_in,]
 testData &lt;- training[-train_in,]</code></pre>
-<p>Now we have 13737 observations and 86 Variables in the training data set, we will use this to train our prediction models, we will try the following machine learning algorithms: 1. Decision Tree 2. Random Forest 3. Gradient Boosted Tress</p>
-<div id="decision-tree" class="section level3">
-<h3>1. Decision Tree</h3>
-<pre class="r"><code>cluster &lt;- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+<p>Now we have 13737 observations and 32 Variables in the training data set, we will use this to train our prediction models, we will try the following machine learning algorithms: 1. Random Forest 2. Gradient Boosted Trees 3. Support Vector Machine</p>
+<div id="random-forest" class="section level3">
+<h3>1. Random Forest</h3>
+<pre class="r"><code>set.seed(1254)
+cluster &lt;- makeCluster(detectCores() - 1)
 registerDoParallel(cluster)
-control &lt;- trainControl(method=&quot;cv&quot;, number=5, verboseIter=F, allowParallel = TRUE)</code></pre>
+control &lt;- trainControl(method=&quot;cv&quot;, number=3, allowParallel = TRUE )
+system.time(rf_Model &lt;- train(classe ~ .,
+               data = trainData,
+               method = &quot;rf&quot;,
+               trControl=control))</code></pre>
+<pre><code>##    user  system elapsed 
+##   21.84    0.38  102.58</code></pre>
+<pre class="r"><code>stopCluster(cluster)
+registerDoSEQ()
+rf_Predict &lt;- predict(rf_Model, testData)
+rf_cm &lt;- confusionMatrix(rf_Predict,factor(testData$classe))
+rf_cm</code></pre>
+<pre><code>## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 1671   12    0    0    0
+##          B    3 1126   12    0    0
+##          C    0    1 1011   15    0
+##          D    0    0    3  949    4
+##          E    0    0    0    0 1078
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.9915          
+##                  95% CI : (0.9888, 0.9937)
+##     No Information Rate : 0.2845          
+##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16       
+##                                           
+##                   Kappa : 0.9893          
+##                                           
+##  Mcnemar&#39;s Test P-Value : NA              
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            0.9982   0.9886   0.9854   0.9844   0.9963
+## Specificity            0.9972   0.9968   0.9967   0.9986   1.0000
+## Pos Pred Value         0.9929   0.9869   0.9844   0.9927   1.0000
+## Neg Pred Value         0.9993   0.9973   0.9969   0.9970   0.9992
+## Prevalence             0.2845   0.1935   0.1743   0.1638   0.1839
+## Detection Rate         0.2839   0.1913   0.1718   0.1613   0.1832
+## Detection Prevalence   0.2860   0.1939   0.1745   0.1624   0.1832
+## Balanced Accuracy      0.9977   0.9927   0.9910   0.9915   0.9982</code></pre>
 </div>
+<div id="gradient-boosted-trees" class="section level3">
+<h3>2. Gradient Boosted Trees</h3>
+<pre class="r"><code>#control_gbm &lt;- trainControl(method=&quot;cv&quot;, number=3, verboseIter=F)
+#gbm_Model &lt;- train(classe ~. , data=trainData , method = &quot;gbm&quot; , trControl = control_gbm , tuneLength = 5, verbose = F)
+#gbm_predict &lt;- predict(gbm_Model, testData)
+#gbm_cm &lt;- confusionMatrix(gbm_Predict,factor(testData$classe))
+#gbm_cm</code></pre>
+</div>
+<div id="support-vector-machine" class="section level3">
+<h3>3.Support Vector Machine</h3>
+<pre class="r"><code>control_svm &lt;- trainControl(method=&quot;cv&quot;, number=3, verboseIter=F)
+svm_Model &lt;- train(classe ~. , data=trainData , method = &quot;svmLinear&quot; , trControl = control_svm , tuneLength = 5, verbose = F)
+svm_predict &lt;- predict(svm_Model, testData)
+svm_cm &lt;- confusionMatrix(svm_predict,factor(testData$classe))
+svm_cm</code></pre>
+<pre><code>## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 1369  234  164  113  125
+##          B  100  605   97   86  161
+##          C  115  110  668  125  113
+##          D   70   89   72  571  115
+##          E   20  101   25   69  568
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.6425          
+##                  95% CI : (0.6301, 0.6547)
+##     No Information Rate : 0.2845          
+##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16       
+##                                           
+##                   Kappa : 0.5446          
+##                                           
+##  Mcnemar&#39;s Test P-Value : &lt; 2.2e-16       
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            0.8178   0.5312   0.6511  0.59232  0.52495
+## Specificity            0.8490   0.9064   0.9047  0.92969  0.95524
+## Pos Pred Value         0.6828   0.5767   0.5906  0.62268  0.72542
+## Neg Pred Value         0.9214   0.8896   0.9247  0.92089  0.89926
+## Prevalence             0.2845   0.1935   0.1743  0.16381  0.18386
+## Detection Rate         0.2326   0.1028   0.1135  0.09703  0.09652
+## Detection Prevalence   0.3407   0.1782   0.1922  0.15582  0.13305
+## Balanced Accuracy      0.8334   0.7188   0.7779  0.76101  0.74010</code></pre>
+</div>
+</div>
+<div id="model-selection-predictions-on-validation-data" class="section level2">
+<h2>Model Selection &amp; Predictions on Validation data</h2>
+<p>As we see both Random Forest &amp; Gradient boosted Model has a very good Accuracy and a little out of sample errors rather than support vector machine so I am going to select <em>Random Forest</em> to predict the 20 class in the Validation data set.</p>
+<pre class="r"><code>predict20 &lt;- predict(rf_Model,newdata=validation) 
+print(predict20)</code></pre>
+<pre><code>##  [1] B A B A A E D B A A B C B A E E A B B B
+## Levels: A B C D E</code></pre>
 </div>
 
 
